@@ -1,21 +1,11 @@
-extern crate actix_session;
-extern crate actix_web;
 extern crate oauth2;
-#[macro_use] extern crate serde_derive;
+extern crate simple_server;
 extern crate url;
 
 // ssh -L 127.0.0.1:6060:linode.mrjon.es:6060 linode.mrjon.es
 
 use oauth2::prelude::*;
 
-#[derive(Deserialize)]
-struct OauthToken {
-    pub code: String
-}
-
-fn handler2(token: actix_web::web::Query<OauthToken>) -> String {
-    return format!("Code is: {}", token.code);
-}
 
 fn main() -> std::io::Result<()> {
     println!("Hello, world!");
@@ -36,10 +26,17 @@ fn main() -> std::io::Result<()> {
     println!("Browse to:");
     println!("{}", auth_url);
 
-    return actix_web::HttpServer::new(
-        || actix_web::App::new().service(
-            actix_web::web::resource("/").route(
-                actix_web::web::get().to(handler2))))
-        .bind("0.0.0.0:6060")?
-        .run();
+    let server = simple_server::Server::new(
+        |request, mut response| {
+            println!("Request received. {} {}", request.method(), request.uri());
+            let url_string = request.uri().to_string();
+            let url = url::form_urlencoded::parse(url_string.as_bytes());
+            println!("code: {}", url
+                     .filter(|(k, _)| k == "code")
+                     .map(|(_, v)| v.to_string())
+                     .next()
+                     .expect("no code query param"));
+            return Ok(response.body("Hello Rust!".as_bytes().to_vec())?);
+        });
+    server.listen("linode.mrjon.es", "6060");
 }
