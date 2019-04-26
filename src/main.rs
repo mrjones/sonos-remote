@@ -1,27 +1,32 @@
 extern crate actix_session;
 extern crate actix_web;
 extern crate oauth2;
+#[macro_use] extern crate serde_derive;
 extern crate url;
 
 // ssh -L 127.0.0.1:6060:linode.mrjon.es:6060 linode.mrjon.es
 
 use oauth2::prelude::*;
 
+#[derive(Deserialize)]
+struct OauthToken {
+    pub code: String
+}
 
+/*
 #[actix_web::get("/")]
 fn oauth_redirect_handler(session: actix_session::Session, req: actix_web::HttpRequest) -> actix_web::Result<actix_web::HttpResponse> {
     println!("Request: {:?}", req);
 
-
-
-
-//    let code: String = req.query().query("code")?;
-
-//    println!("Code: {}", code);
-
     Ok(actix_web::HttpResponse::build(actix_web::http::StatusCode::OK)
         .content_type("text/html; charset=utf-8")
         .body("oauth token handler"))
+
+}
+*/
+
+fn handler2(token: actix_web::web::Query<OauthToken>) -> String {
+    return format!("Code is: {}", token.code);
 
 }
 
@@ -43,17 +48,14 @@ fn main() -> std::io::Result<()> {
 
     println!("Browse to: {}", auth_url);
 
-
-//    let sys = actix_rt::System::new("basic-example");
-
+//    return actix_web::HttpServer::new(
+//        || actix_web::App::new().service(oauth_redirect_handler))
+//        .bind("0.0.0.0:6060")?
+//        .run();
     return actix_web::HttpServer::new(
-        || actix_web::App::new().service(oauth_redirect_handler))
+        || actix_web::App::new().service(
+            actix_web::web::resource("/").route(
+                actix_web::web::get().to(handler2))))
         .bind("0.0.0.0:6060")?
         .run();
-//    sys.run();
-
-//    let token_result =
-//        client.exchange_code(oauth2::AuthorizationCode::new(line));
-
-
 }

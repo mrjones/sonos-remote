@@ -1298,6 +1298,8 @@ dependencies = [
  "actix-session 0.1.0-beta.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "actix-web 1.0.0-beta.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "oauth2 2.0.0-beta.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
