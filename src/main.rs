@@ -13,21 +13,8 @@ struct OauthToken {
     pub code: String
 }
 
-/*
-#[actix_web::get("/")]
-fn oauth_redirect_handler(session: actix_session::Session, req: actix_web::HttpRequest) -> actix_web::Result<actix_web::HttpResponse> {
-    println!("Request: {:?}", req);
-
-    Ok(actix_web::HttpResponse::build(actix_web::http::StatusCode::OK)
-        .content_type("text/html; charset=utf-8")
-        .body("oauth token handler"))
-
-}
-*/
-
 fn handler2(token: actix_web::web::Query<OauthToken>) -> String {
     return format!("Code is: {}", token.code);
-
 }
 
 fn main() -> std::io::Result<()> {
@@ -46,12 +33,9 @@ fn main() -> std::io::Result<()> {
 
     let (auth_url, _csrf_token) = client.authorize_url(oauth2::CsrfToken::new_random);
 
-    println!("Browse to: {}", auth_url);
+    println!("Browse to:");
+    println!("{}", auth_url);
 
-//    return actix_web::HttpServer::new(
-//        || actix_web::App::new().service(oauth_redirect_handler))
-//        .bind("0.0.0.0:6060")?
-//        .run();
     return actix_web::HttpServer::new(
         || actix_web::App::new().service(
             actix_web::web::resource("/").route(
