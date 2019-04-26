@@ -27,15 +27,22 @@ fn main() -> std::io::Result<()> {
     println!("{}", auth_url);
 
     let server = simple_server::Server::new(
-        |request, mut response| {
+        move |request, mut response| {
             println!("Request received. {} {}", request.method(), request.uri());
             let url_string = request.uri().to_string();
             let url = url::form_urlencoded::parse(url_string.as_bytes());
-            println!("code: {}", url
-                     .filter(|(k, _)| k == "code")
-                     .map(|(_, v)| v.to_string())
-                     .next()
-                     .expect("no code query param"));
+            let code: String = url
+                .filter(|(k, _)| k == "code")
+                .map(|(_, v)| v.to_string())
+                .next()
+                .expect("no code query param");
+            println!("Code {}", code);
+
+            match client.exchange_code(oauth2::AuthorizationCode::new(code)) {
+                Ok(token) => println!("Token: {:?}", token),
+                Err(err) => println!("Err: {}", err),
+            };
+
             return Ok(response.body("Hello Rust!".as_bytes().to_vec())?);
         });
     server.listen("linode.mrjon.es", "6060");
