@@ -14,5 +14,6 @@ path = "src/controller/main.rs"
 
 [dependencies]
 oauth2 = "2.0.0-beta.2"
+reqwest = "*"
 simple-server = "*"
 url = "*"

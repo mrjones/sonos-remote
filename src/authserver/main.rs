@@ -19,7 +19,9 @@ fn main() -> std::io::Result<()> {
         Some(oauth2::ClientSecret::new(client_secret)),
         oauth2::AuthUrl::new(url::Url::parse("https://api.sonos.com/login/v3/oauth").expect("auth url")),
         Some(oauth2::TokenUrl::new(url::Url::parse("https://api.sonos.com/login/v3/oauth/access").expect("token url")))
-    ).set_redirect_url(oauth2::RedirectUrl::new(url::Url::parse("http://localhost:6060").expect("redirect url")));
+    )
+        .add_scope(oauth2::Scope::new("playback-control-all".to_string()))
+        .set_redirect_url(oauth2::RedirectUrl::new(url::Url::parse("http://localhost:6060").expect("redirect url")));
 
     let (auth_url, _csrf_token) = client.authorize_url(oauth2::CsrfToken::new_random);
 
@@ -38,8 +40,18 @@ fn main() -> std::io::Result<()> {
                 .expect("no code query param");
             println!("Code {}", code);
 
+            use oauth2::TokenResponse;
+
             match client.exchange_code(oauth2::AuthorizationCode::new(code)) {
-                Ok(token) => println!("Token: {:?}", token),
+                // I think response is: &oauth2::basic::BasicTokenResponse
+                Ok(response) => {
+                    assert_eq!(response.token_type(),
+                               &oauth2::basic::BasicTokenType::Bearer);
+                    let access_token: &oauth2::AccessToken = response.access_token();
+
+                    println!("Token: {}", access_token.secret());
+                    println!("Expires in: {:?}", response.expires_in());
+                },
                 Err(err) => println!("Err: {}", err),
             };
 
