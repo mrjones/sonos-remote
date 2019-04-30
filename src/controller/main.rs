@@ -1,4 +1,17 @@
 extern crate reqwest;
+extern crate serde;
+#[macro_use] extern crate serde_derive;
+extern crate serde_json;
+
+#[derive(Deserialize)]
+struct SonosHousehold {
+    pub id: String,
+}
+
+#[derive(Deserialize)]
+struct SonosHouseholdsReply {
+    pub households: Vec<SonosHousehold>,
+}
 
 fn main() {
     println!("Hello, world!");
@@ -15,5 +28,13 @@ fn main() {
         .send()
         .unwrap();
 
-    println!("{:?}",  response.text());
+    let response_body = response.text().expect("response_body");
+
+    println!("{:?}",  response_body);
+
+    let reply: SonosHouseholdsReply = serde_json::from_str(&response_body).expect("parse json");
+
+    for household in reply.households {
+        println!("Household {}", household.id);
+    }
 }
