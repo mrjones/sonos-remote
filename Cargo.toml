@@ -13,6 +13,8 @@ name = "controller"
 path = "src/controller/main.rs"
 
 [dependencies]
+env_logger = "*"
+log = "*"
 oauth2 = "2.0.0-beta.2"
 reqwest = "*"
 serde = "*"

@@ -1,3 +1,5 @@
+extern crate env_logger;
+#[macro_use] extern crate log;
 extern crate reqwest;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
@@ -47,7 +49,7 @@ fn get_households(access_token: &str, client_id: &str, http_client: &reqwest::Cl
 
     let response_body = response.text().expect("response_body");
 
-    println!("{:?}",  response_body);
+    debug!("{:?}",  response_body);
 
     return serde_json::from_str(&response_body).expect("parse json");
 }
@@ -64,7 +66,7 @@ fn get_groups(household_id: &str, access_token: &str, client_id: &str, http_clie
 
     let response_body = response.text().expect("response_body");
 
-    println!("{:?}",  response_body);
+    debug!("{:?}",  response_body);
 
     return serde_json::from_str(&response_body).expect("parse json");
 }
@@ -117,13 +119,13 @@ fn get_playback_state(group_id: &str, access_token: &str, client_id: &str, http_
 
     let response_body = response.text().expect("response_body");
 
-    println!("{:?}",  response_body);
+    debug!("{:?}",  response_body);
 
     return serde_json::from_str(&response_body).expect("parse json");
 }
 
 fn main() {
-    println!("Hello, world!");
+    env_logger::init();
 
     let access_token = std::env::var("ACCESS_TOKEN").expect("must set ACCESS_TOKEN");
     let client_id = std::env::var("CLIENT_ID").expect("must set CLIENT)ID");
