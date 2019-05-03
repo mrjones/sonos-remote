@@ -144,14 +144,15 @@ fn main() {
             for group in groups_reply.groups {
                 println!(" - {} {}", group.name, group.id);
                 let playback = get_playback_state(&group.id, &access_token, &client_id, &http_client);
-                if (group.player_ids.len() > 1) {
-                    for player_id in group.player_ids {
-                        println!("    - {} {}", players.get(&player_id).map(|p| p.name.clone()).unwrap_or("UNKNOWN PLAYER".to_string()), player_id);
-                    }
-                }
                 match playback.current_item {
                     Some(current_item) => println!("   {} - {}", current_item.track.name, current_item.track.artist.name),
                     None => println!("   {}", playback.container.input_type.unwrap_or("UNKOWN".to_string())),
+                }
+
+                if group.player_ids.len() > 1 {
+                    for player_id in group.player_ids {
+                        println!("    - {} {}", players.get(&player_id).map(|p| p.name.clone()).unwrap_or("UNKNOWN PLAYER".to_string()), player_id);
+                    }
                 }
             }
         }
