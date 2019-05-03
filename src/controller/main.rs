@@ -24,8 +24,16 @@ struct SonosGroup {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SonosPlayer {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Deserialize)]
 struct SonosGroupsReply {
     pub groups: Vec<SonosGroup>,
+    pub players: Vec<SonosPlayer>
 }
 
 fn get_households(access_token: &str, client_id: &str, http_client: &reqwest::Client) -> SonosHouseholdsReply {
@@ -84,9 +92,17 @@ struct SonosCurrentItem {
 }
 
 #[derive(Deserialize)]
+struct SonosPlaybackContainer {
+    pub name: Option<String>,
+    #[serde(rename = "type")]
+    pub input_type: Option<String>,
+}
+
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SonosPlaybackMetadata {
-    pub current_item: SonosCurrentItem,
+    pub container: SonosPlaybackContainer,
+    pub current_item: Option<SonosCurrentItem>,
 }
 
 fn get_playback_state(group_id: &str, access_token: &str, client_id: &str, http_client: &reqwest::Client) -> SonosPlaybackMetadata {
@@ -118,10 +134,21 @@ fn main() {
         for household in reply.households {
             println!("Household {}", household.id);
             let groups_reply = get_groups(&household.id, &access_token, &client_id, &http_client);
+            let mut players = std::collections::HashMap::new();
+            for player in &groups_reply.players {
+                players.insert(&player.id, player);
+            }
+
             for group in groups_reply.groups {
                 println!(" - {} {}", group.name, group.id);
                 let playback = get_playback_state(&group.id, &access_token, &client_id, &http_client);
-                println!("   {} {}", playback.current_item.track.name, playback.current_item.track.artist.name);
+                for player_id in group.player_ids {
+                    println!("    - {} {}", players.get(&player_id).map(|p| p.name.clone()).unwrap_or("UNKNOWN PLAYER".to_string()), player_id);
+                }
+                match playback.current_item {
+                    Some(current_item) => println!("   {} {}", current_item.track.name, current_item.track.artist.name),
+                    None => println!("   {}", playback.container.input_type.unwrap_or("UNKOWN".to_string())),
+                }
             }
         }
     }
