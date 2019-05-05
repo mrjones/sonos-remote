@@ -9,8 +9,6 @@ extern crate url;
 
 use oauth2::prelude::*;
 
-
-
 fn redirect_handler(request: &simple_server::Request<Vec<u8>>, response: &mut simple_server::ResponseBuilder, client: &oauth2::basic::BasicClient) -> simple_server::ResponseResult {
     let url_string = request.uri().to_string();
     let url = url::form_urlencoded::parse(url_string.as_bytes());
@@ -30,10 +28,10 @@ fn redirect_handler(request: &simple_server::Request<Vec<u8>>, response: &mut si
                        &oauth2::basic::BasicTokenType::Bearer);
             let access_token: &oauth2::AccessToken = response.access_token();
 
-            info!("Token: {}", access_token.secret());
-            info!("Expires in: {:?}", response.expires_in());
+            println!("Token: {}", access_token.secret());
+            println!("Expires in: {:?}", response.expires_in());
             match response.refresh_token() {
-                Some(rt) => info!("Refresh token: {}", rt.secret()),
+                Some(rt) => println!("Refresh token: {}", rt.secret()),
                 None => error!("No refresh token!"),
             }
         },
@@ -46,20 +44,10 @@ fn redirect_handler(request: &simple_server::Request<Vec<u8>>, response: &mut si
 fn main() -> std::io::Result<()> {
     env_logger::init();
 
-    oauthcommon::foo();
-
     let client_id = std::env::var("CLIENT_ID").expect("must set CLIENT_ID");
     let client_secret = std::env::var("CLIENT_SECRET").expect("must set CLIENT_SECRET");
     info!("ClientID: {}, ClientSecret: {}", client_id, client_secret);
-
-    let client = oauth2::basic::BasicClient::new(
-        oauth2::ClientId::new(client_id),
-        Some(oauth2::ClientSecret::new(client_secret)),
-        oauth2::AuthUrl::new(url::Url::parse("https://api.sonos.com/login/v3/oauth").expect("auth url")),
-        Some(oauth2::TokenUrl::new(url::Url::parse("https://api.sonos.com/login/v3/oauth/access").expect("token url")))
-    )
-        .add_scope(oauth2::Scope::new("playback-control-all".to_string()))
-        .set_redirect_url(oauth2::RedirectUrl::new(url::Url::parse("http://localhost:6060/oauth_redirect").expect("redirect url")));
+    let client = oauthcommon::make_oauth_client(&client_id, &client_secret);
 
     let (auth_url, _csrf_token) = client.authorize_url(oauth2::CsrfToken::new_random);
 

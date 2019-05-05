@@ -5,6 +5,8 @@ extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
 
+use oauth2::prelude::*;
+
 #[derive(Deserialize)]
 struct SonosHousehold {
     pub id: String,
@@ -127,9 +129,25 @@ fn get_playback_state(group_id: &str, access_token: &str, client_id: &str, http_
 fn main() {
     env_logger::init();
 
-    let access_token = std::env::var("ACCESS_TOKEN").expect("must set ACCESS_TOKEN");
+    let mut access_token = std::env::var("ACCESS_TOKEN").expect("must set ACCESS_TOKEN");
     let client_id = std::env::var("CLIENT_ID").expect("must set CLIENT_ID");
     let client_secret = std::env::var("CLIENT_SECRET").expect("must set CLIENT_SECRET");
+
+    let oauth_client = oauthcommon::make_oauth_client(&client_id, &client_secret);
+
+    use oauth2::TokenResponse;
+    match std::env::var("REFRESH_TOKEN") {
+        Err(_) => { info!("no REFRESH_TOKEN set"); },
+        Ok(rt_string) => {
+            let rt = oauth2::RefreshToken::new(rt_string);
+            let response = oauth_client.exchange_refresh_token(&rt)
+                .expect("refreshing token");
+            debug!("Refresh response: {:?}", response);
+            access_token = response.access_token().secret().to_string();
+            info!("Using {} as access_token", access_token);
+        },
+    }
+
 
     let http_client = reqwest::Client::new();
     {
