@@ -128,7 +128,8 @@ fn main() {
     env_logger::init();
 
     let access_token = std::env::var("ACCESS_TOKEN").expect("must set ACCESS_TOKEN");
-    let client_id = std::env::var("CLIENT_ID").expect("must set CLIENT)ID");
+    let client_id = std::env::var("CLIENT_ID").expect("must set CLIENT_ID");
+    let client_secret = std::env::var("CLIENT_SECRET").expect("must set CLIENT_SECRET");
 
     let http_client = reqwest::Client::new();
     {
