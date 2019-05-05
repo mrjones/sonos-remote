@@ -1,12 +1,15 @@
 extern crate env_logger;
 #[macro_use] extern crate log;
 extern crate oauth2;
+extern crate oauthcommon;
 extern crate simple_server;
 extern crate url;
 
 // ssh -L 127.0.0.1:6060:linode.mrjon.es:6060 linode.mrjon.es
 
 use oauth2::prelude::*;
+
+
 
 fn redirect_handler(request: &simple_server::Request<Vec<u8>>, response: &mut simple_server::ResponseBuilder, client: &oauth2::basic::BasicClient) -> simple_server::ResponseResult {
     let url_string = request.uri().to_string();
@@ -42,6 +45,8 @@ fn redirect_handler(request: &simple_server::Request<Vec<u8>>, response: &mut si
 
 fn main() -> std::io::Result<()> {
     env_logger::init();
+
+    oauthcommon::foo();
 
     let client_id = std::env::var("CLIENT_ID").expect("must set CLIENT_ID");
     let client_secret = std::env::var("CLIENT_SECRET").expect("must set CLIENT_SECRET");

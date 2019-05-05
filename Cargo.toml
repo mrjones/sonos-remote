@@ -12,6 +12,10 @@ path = "src/authserver/main.rs"
 name = "controller"
 path = "src/controller/main.rs"
 
+[lib]
+name = "oauthcommon"
+path = "src/oauthcommon/lib.rs"
+
 [dependencies]
 env_logger = "*"
 log = "*"
