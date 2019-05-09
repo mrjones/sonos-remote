@@ -137,7 +137,7 @@ fn load_oauth_tokens(oauth_client: &oauth2::basic::BasicClient) -> oauthcommon::
     if token_state.refresh_token.is_none() ||
         token_state.expiration_timestamp.is_none() ||
         token_state.expiration_timestamp.unwrap() > unix_now {
-            // no need to refresh, or unable to refresh
+            // no need to refresh, or unable to refresh, return what we have
             return token_state;
         }
 
@@ -147,7 +147,7 @@ fn load_oauth_tokens(oauth_client: &oauth2::basic::BasicClient) -> oauthcommon::
     let response = oauth_client.exchange_refresh_token(&rt)
         .expect("refreshing token");
     debug!("Refresh response: {:?}", response);
-    info!("Using {} as access_token",
+    info!("Using {} as refreshed access_token",
           response.access_token().secret().to_string());
 
     let new_token_state = oauthcommon::OauthTokenState{
