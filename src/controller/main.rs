@@ -40,6 +40,14 @@ struct SonosGroupsReply {
     pub players: Vec<SonosPlayer>
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SonosModifyGroupMembersRequest {
+    pub player_ids_to_add: Vec<String>,
+    pub player_ids_to_remove: Vec<String>,
+}
+// Returns SonosGroup
+
 fn get_households(access_token: &str, client_id: &str, http_client: &reqwest::Client) -> SonosHouseholdsReply {
     let mut response = http_client
         .get("https://api.ws.sonos.com/control/api/v1/households")
@@ -163,10 +171,37 @@ fn load_oauth_tokens(oauth_client: &oauth2::basic::BasicClient) -> oauthcommon::
     return new_token_state;
 }
 
+fn print_current_state(oauth_tokens: &oauthcommon::OauthTokenState, http_client: &reqwest::Client, client_id: &str) {
+    let reply = get_households(&oauth_tokens.access_token, &client_id, &http_client);
+    for household in reply.households {
+        println!("Household {}", household.id);
+        let groups_reply = get_groups(&household.id, &oauth_tokens.access_token, &client_id, &http_client);
+        let mut players = std::collections::HashMap::new();
+        for player in &groups_reply.players {
+            players.insert(&player.id, player);
+        }
+
+        for group in groups_reply.groups {
+            println!(" - {} {}", group.name, group.id);
+            let playback = get_playback_state(&group.id, &oauth_tokens.access_token, &client_id, &http_client);
+            match playback.current_item {
+                Some(current_item) => println!("   {} - {}", current_item.track.name, current_item.track.artist.name),
+                None => println!("   {}", playback.container.input_type.unwrap_or("UNKOWN".to_string())),
+            }
+
+            if group.player_ids.len() > 1 {
+                for player_id in group.player_ids {
+                    println!("    - {} {}", players.get(&player_id).map(|p| p.name.clone()).unwrap_or("UNKNOWN PLAYER".to_string()), player_id);
+                }
+            }
+        }
+    }
+
+}
+
 fn main() {
     env_logger::init();
 
-//    let mut access_token = std::env::var("ACCESS_TOKEN").expect("must set ACCESS_TOKEN");
     let client_id = std::env::var("CLIENT_ID").expect("must set CLIENT_ID");
     let client_secret = std::env::var("CLIENT_SECRET").expect("must set CLIENT_SECRET");
 
@@ -176,30 +211,15 @@ fn main() {
     debug!("Oauth Token State {:?}", oauth_tokens);
 
     let http_client = reqwest::Client::new();
-    {
-        let reply = get_households(&oauth_tokens.access_token, &client_id, &http_client);
-        for household in reply.households {
-            println!("Household {}", household.id);
-            let groups_reply = get_groups(&household.id, &oauth_tokens.access_token, &client_id, &http_client);
-            let mut players = std::collections::HashMap::new();
-            for player in &groups_reply.players {
-                players.insert(&player.id, player);
-            }
 
-            for group in groups_reply.groups {
-                println!(" - {} {}", group.name, group.id);
-                let playback = get_playback_state(&group.id, &oauth_tokens.access_token, &client_id, &http_client);
-                match playback.current_item {
-                    Some(current_item) => println!("   {} - {}", current_item.track.name, current_item.track.artist.name),
-                    None => println!("   {}", playback.container.input_type.unwrap_or("UNKOWN".to_string())),
-                }
+    let args: Vec<String> = std::env::args().collect();
 
-                if group.player_ids.len() > 1 {
-                    for player_id in group.player_ids {
-                        println!("    - {} {}", players.get(&player_id).map(|p| p.name.clone()).unwrap_or("UNKNOWN PLAYER".to_string()), player_id);
-                    }
-                }
-            }
+    for arg in args.iter().skip(1) {
+        info!("[Handling {}]", arg);
+        if arg == "print_state" {
+            print_current_state(&oauth_tokens, &http_client, &client_id);
+        } else {
+            error!("Unknown arg {}", arg);
         }
     }
 }
