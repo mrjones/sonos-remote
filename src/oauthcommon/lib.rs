@@ -4,7 +4,7 @@ extern crate serde_json;
 
 use oauth2::prelude::*;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct OauthTokenState {
     pub access_token: String,
     pub refresh_token: Option<String>,

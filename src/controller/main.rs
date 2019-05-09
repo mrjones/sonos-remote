@@ -173,6 +173,7 @@ fn main() {
     let oauth_client = oauthcommon::make_oauth_client(&client_id, &client_secret);
 
     let oauth_tokens = load_oauth_tokens(&oauth_client);
+    debug!("Oauth Token State {:?}", oauth_tokens);
 
     let http_client = reqwest::Client::new();
     {
