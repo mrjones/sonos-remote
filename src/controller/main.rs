@@ -17,7 +17,7 @@ struct SonosHouseholdsReply {
     pub households: Vec<SonosHousehold>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SonosGroup {
     pub id: String,
@@ -45,6 +45,21 @@ struct SonosGroupsReply {
 struct SonosModifyGroupMembersRequest {
     pub player_ids_to_add: Vec<String>,
     pub player_ids_to_remove: Vec<String>,
+}
+
+// Reconcile with SonosGroup (which has playback State)?
+#[derive(Debug,Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SonosGroupInfo {
+    pub player_ids: Vec<String>,
+    pub coordinator_id: String,
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Debug,Deserialize)]
+struct SonosGroupInfoReply {
+    pub group: SonosGroupInfo,
 }
 // Returns SonosGroup
 
@@ -196,6 +211,34 @@ fn print_current_state(oauth_tokens: &oauthcommon::OauthTokenState, http_client:
             }
         }
     }
+}
+
+fn break_group(oauth_tokens: &oauthcommon::OauthTokenState, http_client: &reqwest::Client, client_id: &str) {
+    let group_id = "RINCON_B8E937B1D25601400:232";
+
+    let request = SonosModifyGroupMembersRequest{
+        player_ids_to_add: vec![],
+        player_ids_to_remove: vec!["RINCON_949F3E7DA95401400".to_string()],
+    };
+    let request_body = serde_json::to_string(&request).expect("request to string");
+
+    let mut response = http_client
+        .post(
+            &format!("https://api.ws.sonos.com/control/api/v1/groups/{}/groups/modifyGroupMembers", group_id))
+        .body(request_body)
+        .bearer_auth(&oauth_tokens.access_token)
+        .header(reqwest::header::HeaderName::from_static("x-sonos-api-key"),
+                reqwest::header::HeaderValue::from_str(&client_id).expect("header value"))
+        .send()
+        .unwrap();
+
+    let response_body = response.text().expect("response_body");
+
+    debug!("Raw response: {:?}",  response_body);
+
+    let parsed_response: SonosGroupInfoReply =
+        serde_json::from_str(&response_body).expect("parse json");
+    debug!("Parsed response: {:?}",  parsed_response);
 
 }
 
@@ -218,6 +261,8 @@ fn main() {
         info!("[Handling {}]", arg);
         if arg == "print_state" {
             print_current_state(&oauth_tokens, &http_client, &client_id);
+        } else if arg == "break_group" {
+            break_group(&oauth_tokens, &http_client, &client_id);
         } else {
             error!("Unknown arg {}", arg);
         }
