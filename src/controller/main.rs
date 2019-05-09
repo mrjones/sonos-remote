@@ -126,35 +126,60 @@ fn get_playback_state(group_id: &str, access_token: &str, client_id: &str, http_
     return serde_json::from_str(&response_body).expect("parse json");
 }
 
+fn load_oauth_tokens(oauth_client: &oauth2::basic::BasicClient) -> oauthcommon::OauthTokenState {
+    let token_state = oauthcommon::load_oauth_token_state(&"sonostoken".to_string()).expect("load token");
+
+    use oauth2::TokenResponse;
+
+    let unix_now = std::time::SystemTime::now().duration_since(
+        std::time::SystemTime::UNIX_EPOCH).expect("epoch duration").as_secs();
+
+    if token_state.refresh_token.is_none() ||
+        token_state.expiration_timestamp.is_none() ||
+        token_state.expiration_timestamp.unwrap() > unix_now {
+            // no need to refresh, or unable to refresh
+            return token_state;
+        }
+
+    info!("Refreshing OAuth token");
+    let rt_string = token_state.refresh_token.unwrap();
+    let rt = oauth2::RefreshToken::new(rt_string);
+    let response = oauth_client.exchange_refresh_token(&rt)
+        .expect("refreshing token");
+    debug!("Refresh response: {:?}", response);
+    info!("Using {} as access_token",
+          response.access_token().secret().to_string());
+
+    let new_token_state = oauthcommon::OauthTokenState{
+        access_token: response.access_token().secret().to_string(),
+        refresh_token: response.refresh_token().map(|x| x.secret().to_string()),
+        expiration_timestamp: response.expires_in().map(
+            |x| (std::time::SystemTime::now() + x).duration_since(
+                std::time::SystemTime::UNIX_EPOCH).expect("duration since").as_secs()),
+    };
+
+    oauthcommon::save_oauth_token_state(&new_token_state, &"sonostoken".to_string());
+
+    return new_token_state;
+}
+
 fn main() {
     env_logger::init();
 
-    let mut access_token = std::env::var("ACCESS_TOKEN").expect("must set ACCESS_TOKEN");
+//    let mut access_token = std::env::var("ACCESS_TOKEN").expect("must set ACCESS_TOKEN");
     let client_id = std::env::var("CLIENT_ID").expect("must set CLIENT_ID");
     let client_secret = std::env::var("CLIENT_SECRET").expect("must set CLIENT_SECRET");
 
     let oauth_client = oauthcommon::make_oauth_client(&client_id, &client_secret);
 
-    use oauth2::TokenResponse;
-    match std::env::var("REFRESH_TOKEN") {
-        Err(_) => { info!("no REFRESH_TOKEN set"); },
-        Ok(rt_string) => {
-            let rt = oauth2::RefreshToken::new(rt_string);
-            let response = oauth_client.exchange_refresh_token(&rt)
-                .expect("refreshing token");
-            debug!("Refresh response: {:?}", response);
-            access_token = response.access_token().secret().to_string();
-            info!("Using {} as access_token", access_token);
-        },
-    }
-
+    let oauth_tokens = load_oauth_tokens(&oauth_client);
 
     let http_client = reqwest::Client::new();
     {
-        let reply = get_households(&access_token, &client_id, &http_client);
+        let reply = get_households(&oauth_tokens.access_token, &client_id, &http_client);
         for household in reply.households {
             println!("Household {}", household.id);
-            let groups_reply = get_groups(&household.id, &access_token, &client_id, &http_client);
+            let groups_reply = get_groups(&household.id, &oauth_tokens.access_token, &client_id, &http_client);
             let mut players = std::collections::HashMap::new();
             for player in &groups_reply.players {
                 players.insert(&player.id, player);
@@ -162,7 +187,7 @@ fn main() {
 
             for group in groups_reply.groups {
                 println!(" - {} {}", group.name, group.id);
-                let playback = get_playback_state(&group.id, &access_token, &client_id, &http_client);
+                let playback = get_playback_state(&group.id, &oauth_tokens.access_token, &client_id, &http_client);
                 match playback.current_item {
                     Some(current_item) => println!("   {} - {}", current_item.track.name, current_item.track.artist.name),
                     None => println!("   {}", playback.container.input_type.unwrap_or("UNKOWN".to_string())),

@@ -8,6 +8,7 @@ use oauth2::prelude::*;
 pub struct OauthTokenState {
     pub access_token: String,
     pub refresh_token: Option<String>,
+    pub expiration_timestamp: Option<u64>,
 }
 
 pub fn save_oauth_token_state<P: AsRef<std::path::Path>>(state: &OauthTokenState, filename: &P) {
@@ -16,6 +17,13 @@ pub fn save_oauth_token_state<P: AsRef<std::path::Path>>(state: &OauthTokenState
     let contents = serde_json::to_string(state).expect("save token to string");
     let mut file = std::fs::File::create(filename).expect("creating token savefile");
     file.write_all(contents.as_bytes()).expect("writing token savefile");
+}
+
+pub fn load_oauth_token_state<P: AsRef<std::path::Path>>(filename: &P) -> std::io::Result<OauthTokenState> {
+    let contents = std::fs::read_to_string(filename).expect("read token savefile");
+    let state: OauthTokenState = serde_json::from_str(&contents).expect("parsing token savefile");
+
+    return Ok(state);
 }
 
 pub fn make_oauth_client(client_id: &str, client_secret: &str) -> oauth2::basic::BasicClient {

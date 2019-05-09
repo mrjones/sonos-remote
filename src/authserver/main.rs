@@ -31,6 +31,9 @@ fn redirect_handler(request: &simple_server::Request<Vec<u8>>, response: &mut si
             let save_state = oauthcommon::OauthTokenState{
                 access_token: response.access_token().secret().to_string(),
                 refresh_token: response.refresh_token().map(|x| x.secret().to_string()),
+                expiration_timestamp: response.expires_in().map(
+                    |x| (std::time::SystemTime::now() + x).duration_since(
+                        std::time::SystemTime::UNIX_EPOCH).expect("epoch duration").as_secs()),
             };
             oauthcommon::save_oauth_token_state(&save_state, &"sonostoken".to_string());
             println!("Token: {}", access_token.secret());
