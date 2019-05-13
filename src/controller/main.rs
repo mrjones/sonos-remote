@@ -243,7 +243,7 @@ fn break_group(oauth_tokens: &oauthcommon::OauthTokenState, http_client: &reqwes
 }
 
 fn main() {
-    env_logger::init();
+    env_logger::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let client_id = std::env::var("CLIENT_ID").expect("must set CLIENT_ID");
     let client_secret = std::env::var("CLIENT_SECRET").expect("must set CLIENT_SECRET");
