@@ -9,6 +9,8 @@ extern crate url;
 
 use oauth2::prelude::*;
 
+type BoxResult<T> = Result<T,Box<std::error::Error>>;
+
 fn redirect_handler(request: &simple_server::Request<Vec<u8>>, response: &mut simple_server::ResponseBuilder, client: &oauth2::basic::BasicClient) -> simple_server::ResponseResult {
     let url_string = request.uri().to_string();
     let url = url::form_urlencoded::parse(url_string.as_bytes());
@@ -43,11 +45,11 @@ fn redirect_handler(request: &simple_server::Request<Vec<u8>>, response: &mut si
     return Ok(response.body("Hello Rust!".as_bytes().to_vec())?);
 }
 
-fn main() -> std::io::Result<()> {
+fn main() -> BoxResult<()> {
     env_logger::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    let client_id = std::env::var("CLIENT_ID").expect("must set CLIENT_ID");
-    let client_secret = std::env::var("CLIENT_SECRET").expect("must set CLIENT_SECRET");
+    let client_id = std::env::var("CLIENT_ID")?;
+    let client_secret = std::env::var("CLIENT_SECRET")?;
     info!("ClientID: {}, ClientSecret: {}", client_id, client_secret);
     let client = oauthcommon::make_oauth_client(&client_id, &client_secret);
 
