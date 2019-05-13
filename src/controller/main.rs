@@ -1,4 +1,5 @@
 extern crate env_logger;
+#[macro_use] extern crate error_chain;
 #[macro_use] extern crate log;
 extern crate reqwest;
 extern crate serde;
@@ -6,6 +7,18 @@ extern crate serde;
 extern crate serde_json;
 
 use oauth2::prelude::*;
+
+#[allow(deprecated)] // WORKAROUND https://github.com/rust-lang-nursery/error-chain/issues/254
+error_chain! {
+    foreign_links {
+        Env(std::env::VarError);
+        Http(reqwest::Error);
+        InvalidHttpHeader(reqwest::header::InvalidHeaderValue);
+        Io(std::io::Error);
+        Json(serde_json::Error);
+        SystemTime(std::time::SystemTimeError);
+    }
+}
 
 #[derive(Deserialize)]
 struct SonosHousehold {
@@ -63,37 +76,39 @@ struct SonosGroupInfoReply {
 }
 // Returns SonosGroup
 
-fn get_households(access_token: &str, client_id: &str, http_client: &reqwest::Client) -> SonosHouseholdsReply {
+
+
+fn get_households(access_token: &str, client_id: &str, http_client: &reqwest::Client) -> Result<SonosHouseholdsReply> {
     let mut response = http_client
         .get("https://api.ws.sonos.com/control/api/v1/households")
         .bearer_auth(access_token)
         .header(reqwest::header::HeaderName::from_static("x-sonos-api-key"),
-                reqwest::header::HeaderValue::from_str(&client_id).expect("header value"))
+                reqwest::header::HeaderValue::from_str(&client_id)?)
         .send()
         .unwrap();
 
-    let response_body = response.text().expect("response_body");
+    let response_body = response.text()?;
 
     debug!("{:?}",  response_body);
 
-    return serde_json::from_str(&response_body).expect("parse json");
+    return Ok(serde_json::from_str(&response_body)?);
 }
 
-fn get_groups(household_id: &str, access_token: &str, client_id: &str, http_client: &reqwest::Client) -> SonosGroupsReply {
+fn get_groups(household_id: &str, access_token: &str, client_id: &str, http_client: &reqwest::Client) -> Result<SonosGroupsReply> {
     let mut response = http_client
         .get(
             &format!("https://api.ws.sonos.com/control/api/v1/households/{}/groups:1", household_id))
         .bearer_auth(access_token)
         .header(reqwest::header::HeaderName::from_static("x-sonos-api-key"),
-                reqwest::header::HeaderValue::from_str(&client_id).expect("header value"))
+                reqwest::header::HeaderValue::from_str(&client_id)?)
         .send()
         .unwrap();
 
-    let response_body = response.text().expect("response_body");
+    let response_body = response.text()?;
 
     debug!("{:?}",  response_body);
 
-    return serde_json::from_str(&response_body).expect("parse json");
+    return Ok(serde_json::from_str(&response_body)?);
 }
 
 #[derive(Deserialize)]
@@ -132,43 +147,42 @@ struct SonosPlaybackMetadata {
     pub current_item: Option<SonosCurrentItem>,
 }
 
-fn get_playback_state(group_id: &str, access_token: &str, client_id: &str, http_client: &reqwest::Client) -> SonosPlaybackMetadata {
+fn get_playback_state(group_id: &str, access_token: &str, client_id: &str, http_client: &reqwest::Client) -> Result<SonosPlaybackMetadata> {
     let mut response = http_client
         .get(
             &format!("https://api.ws.sonos.com/control/api/v1/groups/{}/playbackMetadata", group_id))
         .bearer_auth(access_token)
         .header(reqwest::header::HeaderName::from_static("x-sonos-api-key"),
-                reqwest::header::HeaderValue::from_str(&client_id).expect("header value"))
+                reqwest::header::HeaderValue::from_str(&client_id)?)
         .send()
         .unwrap();
 
-    let response_body = response.text().expect("response_body");
+    let response_body = response.text()?;
 
     debug!("{:?}",  response_body);
 
-    return serde_json::from_str(&response_body).expect("parse json");
+    return Ok(serde_json::from_str(&response_body)?);
 }
 
-fn load_oauth_tokens(oauth_client: &oauth2::basic::BasicClient) -> oauthcommon::OauthTokenState {
-    let token_state = oauthcommon::load_oauth_token_state(&"sonostoken".to_string()).expect("load token");
+fn load_oauth_tokens(oauth_client: &oauth2::basic::BasicClient) -> Result<oauthcommon::OauthTokenState> {
+    let token_state = oauthcommon::load_oauth_token_state(&"sonostoken".to_string())?;
 
     use oauth2::TokenResponse;
 
     let unix_now = std::time::SystemTime::now().duration_since(
-        std::time::SystemTime::UNIX_EPOCH).expect("epoch duration").as_secs();
+        std::time::SystemTime::UNIX_EPOCH)?.as_secs();
 
     if token_state.refresh_token.is_none() ||
         token_state.expiration_timestamp.is_none() ||
         token_state.expiration_timestamp.unwrap() > unix_now {
             // no need to refresh, or unable to refresh, return what we have
-            return token_state;
+            return Ok(token_state);
         }
 
     info!("Refreshing OAuth token");
     let rt_string = token_state.refresh_token.unwrap();
     let rt = oauth2::RefreshToken::new(rt_string);
-    let response = oauth_client.exchange_refresh_token(&rt)
-        .expect("refreshing token");
+    let response = oauth_client.exchange_refresh_token(&rt).expect("exchanging refresh token failed");
     debug!("Refresh response: {:?}", response);
     info!("Using {} as refreshed access_token",
           response.access_token().secret().to_string());
@@ -178,19 +192,19 @@ fn load_oauth_tokens(oauth_client: &oauth2::basic::BasicClient) -> oauthcommon::
         refresh_token: response.refresh_token().map(|x| x.secret().to_string()),
         expiration_timestamp: response.expires_in().map(
             |x| (std::time::SystemTime::now() + x).duration_since(
-                std::time::SystemTime::UNIX_EPOCH).expect("duration since").as_secs()),
+                std::time::SystemTime::UNIX_EPOCH).expect("foo").as_secs()),
     };
 
     oauthcommon::save_oauth_token_state(&new_token_state, &"sonostoken".to_string());
 
-    return new_token_state;
+    return Ok(new_token_state);
 }
 
-fn print_current_state(oauth_tokens: &oauthcommon::OauthTokenState, http_client: &reqwest::Client, client_id: &str) {
-    let reply = get_households(&oauth_tokens.access_token, &client_id, &http_client);
+fn print_current_state(oauth_tokens: &oauthcommon::OauthTokenState, http_client: &reqwest::Client, client_id: &str) -> Result<()> {
+    let reply = get_households(&oauth_tokens.access_token, &client_id, &http_client)?;
     for household in reply.households {
         println!("Household {}", household.id);
-        let groups_reply = get_groups(&household.id, &oauth_tokens.access_token, &client_id, &http_client);
+        let groups_reply = get_groups(&household.id, &oauth_tokens.access_token, &client_id, &http_client)?;
         let mut players = std::collections::HashMap::new();
         for player in &groups_reply.players {
             players.insert(&player.id, player);
@@ -198,7 +212,7 @@ fn print_current_state(oauth_tokens: &oauthcommon::OauthTokenState, http_client:
 
         for group in groups_reply.groups {
             println!(" - {} {}", group.name, group.id);
-            let playback = get_playback_state(&group.id, &oauth_tokens.access_token, &client_id, &http_client);
+            let playback = get_playback_state(&group.id, &oauth_tokens.access_token, &client_id, &http_client)?;
             match playback.current_item {
                 Some(current_item) => println!("   {} - {}", current_item.track.name, current_item.track.artist.name),
                 None => println!("   {}", playback.container.input_type.unwrap_or("UNKOWN".to_string())),
@@ -211,16 +225,18 @@ fn print_current_state(oauth_tokens: &oauthcommon::OauthTokenState, http_client:
             }
         }
     }
+
+    return Ok(());
 }
 
-fn break_group(oauth_tokens: &oauthcommon::OauthTokenState, http_client: &reqwest::Client, client_id: &str) {
+fn break_group(oauth_tokens: &oauthcommon::OauthTokenState, http_client: &reqwest::Client, client_id: &str) -> Result<()> {
     let group_id = "RINCON_B8E937B1D25601400:232";
 
     let request = SonosModifyGroupMembersRequest{
         player_ids_to_add: vec![],
         player_ids_to_remove: vec!["RINCON_949F3E7DA95401400".to_string()],
     };
-    let request_body = serde_json::to_string(&request).expect("request to string");
+    let request_body = serde_json::to_string(&request)?;
 
     let mut response = http_client
         .post(
@@ -228,29 +244,30 @@ fn break_group(oauth_tokens: &oauthcommon::OauthTokenState, http_client: &reqwes
         .body(request_body)
         .bearer_auth(&oauth_tokens.access_token)
         .header(reqwest::header::HeaderName::from_static("x-sonos-api-key"),
-                reqwest::header::HeaderValue::from_str(&client_id).expect("header value"))
+                reqwest::header::HeaderValue::from_str(&client_id)?)
         .send()
         .unwrap();
 
-    let response_body = response.text().expect("response_body");
+    let response_body = response.text()?;
 
     debug!("Raw response: {:?}",  response_body);
 
     let parsed_response: SonosGroupInfoReply =
-        serde_json::from_str(&response_body).expect("parse json");
+        serde_json::from_str(&response_body)?;
     debug!("Parsed response: {:?}",  parsed_response);
 
+    return Ok(());
 }
 
-fn main() {
+fn main() -> Result<()> {
     env_logger::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    let client_id = std::env::var("CLIENT_ID").expect("must set CLIENT_ID");
-    let client_secret = std::env::var("CLIENT_SECRET").expect("must set CLIENT_SECRET");
+    let client_id = std::env::var("CLIENT_ID")?;
+    let client_secret = std::env::var("CLIENT_SECRET")?;
 
     let oauth_client = oauthcommon::make_oauth_client(&client_id, &client_secret);
 
-    let oauth_tokens = load_oauth_tokens(&oauth_client);
+    let oauth_tokens = load_oauth_tokens(&oauth_client)?;
     debug!("Oauth Token State {:?}", oauth_tokens);
 
     let http_client = reqwest::Client::new();
@@ -260,11 +277,13 @@ fn main() {
     for arg in args.iter().skip(1) {
         info!("[Handling {}]", arg);
         if arg == "print_state" {
-            print_current_state(&oauth_tokens, &http_client, &client_id);
+            print_current_state(&oauth_tokens, &http_client, &client_id)?;
         } else if arg == "break_group" {
-            break_group(&oauth_tokens, &http_client, &client_id);
+            break_group(&oauth_tokens, &http_client, &client_id)?;
         } else {
             error!("Unknown arg {}", arg);
         }
     }
+
+    return Ok(());
 }
