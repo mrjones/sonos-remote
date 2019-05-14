@@ -11,8 +11,6 @@ use oauth2::prelude::*;
 mod result;
 mod sonos_api;
 
-// Returns SonosGroup
-
 fn load_oauth_tokens(oauth_client: &oauth2::basic::BasicClient) -> result::Result<oauthcommon::OauthTokenState> {
     let token_state = oauthcommon::load_oauth_token_state(&"sonostoken".to_string())?;
 
