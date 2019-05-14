@@ -99,6 +99,14 @@ pub struct Client {
 }
 
 impl Client {
+    pub fn new(access_token: &str, client_id: &str) -> Client {
+        return Client {
+            access_token: access_token.to_string(),
+            client_id: client_id.to_string(),
+            http_client: reqwest::Client::new(),
+        }
+    }
+
     pub fn get_households(&self) -> super::result::Result<SonosHouseholdsReply> {
         let mut response = self.http_client
             .get("https://api.ws.sonos.com/control/api/v1/households")

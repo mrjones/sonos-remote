@@ -85,11 +85,7 @@ fn main() -> result::Result<()> {
     let oauth_tokens = load_oauth_tokens(&oauth_client)?;
     debug!("Oauth Token State {:?}", oauth_tokens);
 
-    let api = sonos_api::Client {
-        access_token: oauth_tokens.access_token.clone(),
-        client_id: client_id.to_string(),
-        http_client: reqwest::Client::new(),
-    };
+    let api = sonos_api::Client::new(&oauth_tokens.access_token, &client_id);
 
     let args: Vec<String> = std::env::args().collect();
 
