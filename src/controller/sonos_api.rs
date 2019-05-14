@@ -108,21 +108,17 @@ impl Client {
     }
 
     pub fn get_households(&self) -> super::result::Result<SonosHouseholdsReply> {
-        let response_body = self.issue_get("https://api.ws.sonos.com/control/api/v1/households")?;
-
-        return Ok(serde_json::from_str(&response_body)?);
+        return Ok(self.issue_get("https://api.ws.sonos.com/control/api/v1/households")?);
     }
 
     pub fn current_playback_state(&self, group_id: &str) -> super::result::Result<SonosPlaybackMetadata> {
-        let response_body = self.issue_get(
-            &format!("https://api.ws.sonos.com/control/api/v1/groups/{}/playbackMetadata", group_id))?;
-        return Ok(serde_json::from_str(&response_body)?);
+        return Ok(self.issue_get(
+            &format!("https://api.ws.sonos.com/control/api/v1/groups/{}/playbackMetadata", group_id))?);
     }
 
     pub fn get_groups(&self, household_id: &str) -> super::result::Result<SonosGroupsReply> {
-        let response_body = self.issue_get(
-            &format!("https://api.ws.sonos.com/control/api/v1/households/{}/groups:1", household_id))?;
-        return Ok(serde_json::from_str(&response_body)?);
+        return Ok(self.issue_get(
+            &format!("https://api.ws.sonos.com/control/api/v1/households/{}/groups:1", household_id))?);
     }
 
     pub fn break_group(&self) -> super::result::Result<()> {
@@ -155,8 +151,7 @@ impl Client {
         return Ok(());
     }
 
-    // Genericize for serde_json
-    fn issue_get(&self, url: &str) -> super::result::Result<String> {
+    fn issue_get<T: serde::de::DeserializeOwned>(&self, url: &str) -> super::result::Result<T> {
         debug!("Issuing GET {}", url);
         let mut response = self.http_client
             .get(url)
@@ -169,6 +164,6 @@ impl Client {
         let response_body = response.text()?;
         debug!("Response {:?}", response_body);
 
-        return Ok(response_body);
+        return Ok(serde_json::from_str(&response_body)?);
     }
 }
