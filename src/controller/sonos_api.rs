@@ -108,52 +108,20 @@ impl Client {
     }
 
     pub fn get_households(&self) -> super::result::Result<SonosHouseholdsReply> {
-        let mut response = self.http_client
-            .get("https://api.ws.sonos.com/control/api/v1/households")
-            .bearer_auth(&self.access_token)
-            .header(reqwest::header::HeaderName::from_static("x-sonos-api-key"),
-                    reqwest::header::HeaderValue::from_str(&self.client_id)?)
-            .send()
-            .unwrap();
-
-        let response_body = response.text()?;
-
-        debug!("{:?}",  response_body);
+        let response_body = self.issue_get("https://api.ws.sonos.com/control/api/v1/households")?;
 
         return Ok(serde_json::from_str(&response_body)?);
     }
 
     pub fn current_playback_state(&self, group_id: &str) -> super::result::Result<SonosPlaybackMetadata> {
-        let mut response = self.http_client
-            .get(
-                &format!("https://api.ws.sonos.com/control/api/v1/groups/{}/playbackMetadata", group_id))
-            .bearer_auth(&self.access_token)
-            .header(reqwest::header::HeaderName::from_static("x-sonos-api-key"),
-                    reqwest::header::HeaderValue::from_str(&self.client_id)?)
-            .send()
-            .unwrap();
-
-        let response_body = response.text()?;
-
-        debug!("{:?}",  response_body);
-
+        let response_body = self.issue_get(
+            &format!("https://api.ws.sonos.com/control/api/v1/groups/{}/playbackMetadata", group_id))?;
         return Ok(serde_json::from_str(&response_body)?);
     }
 
     pub fn get_groups(&self, household_id: &str) -> super::result::Result<SonosGroupsReply> {
-        let mut response = self.http_client
-            .get(
-                &format!("https://api.ws.sonos.com/control/api/v1/households/{}/groups:1", household_id))
-            .bearer_auth(&self.access_token)
-            .header(reqwest::header::HeaderName::from_static("x-sonos-api-key"),
-                    reqwest::header::HeaderValue::from_str(&self.client_id)?)
-            .send()
-            .unwrap();
-
-        let response_body = response.text()?;
-
-        debug!("{:?}",  response_body);
-
+        let response_body = self.issue_get(
+            &format!("https://api.ws.sonos.com/control/api/v1/households/{}/groups:1", household_id))?;
         return Ok(serde_json::from_str(&response_body)?);
     }
 
@@ -185,5 +153,22 @@ impl Client {
         debug!("Parsed response: {:?}",  parsed_response);
 
         return Ok(());
+    }
+
+    // Genericize for serde_json
+    fn issue_get(&self, url: &str) -> super::result::Result<String> {
+        debug!("Issuing GET {}", url);
+        let mut response = self.http_client
+            .get(url)
+            .bearer_auth(&self.access_token)
+            .header(reqwest::header::HeaderName::from_static("x-sonos-api-key"),
+                    reqwest::header::HeaderValue::from_str(&self.client_id)?)
+            .send()
+            .unwrap();
+
+        let response_body = response.text()?;
+        debug!("Response {:?}", response_body);
+
+        return Ok(response_body);
     }
 }
