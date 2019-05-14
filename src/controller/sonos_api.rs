@@ -128,30 +128,17 @@ impl Client {
             player_ids_to_add: vec![],
             player_ids_to_remove: vec!["RINCON_949F3E7DA95401400".to_string()],
         };
-        let request_body = serde_json::to_string(&request)?;
-
-        let mut response = self.http_client
-            .post(
-                &format!("https://api.ws.sonos.com/control/api/v1/groups/{}/groups/modifyGroupMembers", group_id))
-            .body(request_body)
-            .bearer_auth(&self.access_token)
-            .header(reqwest::header::HeaderName::from_static("x-sonos-api-key"),
-                    reqwest::header::HeaderValue::from_str(&self.client_id)?)
-            .send()
-            .unwrap();
-
-        let response_body = response.text()?;
-
-        debug!("Raw response: {:?}",  response_body);
 
         let parsed_response: SonosGroupInfoReply =
-            serde_json::from_str(&response_body)?;
+            self.issue_post(
+                &format!("https://api.ws.sonos.com/control/api/v1/groups/{}/groups/modifyGroupMembers", group_id),
+                &request)?;
         debug!("Parsed response: {:?}",  parsed_response);
 
         return Ok(());
     }
 
-    fn issue_get<T: serde::de::DeserializeOwned>(&self, url: &str) -> super::result::Result<T> {
+    fn issue_get<ResponseT: serde::de::DeserializeOwned>(&self, url: &str) -> super::result::Result<ResponseT> {
         debug!("Issuing GET {}", url);
         let mut response = self.http_client
             .get(url)
@@ -164,6 +151,24 @@ impl Client {
         let response_body = response.text()?;
         debug!("Response {:?}", response_body);
 
+        return Ok(serde_json::from_str(&response_body)?);
+    }
+
+    fn issue_post<RequestT: serde::Serialize, ResponseT: serde::de::DeserializeOwned>(&self, url: &str, request_body: &RequestT) -> super::result::Result<ResponseT> {
+        let request_body = serde_json::to_string(&request_body)?;
+
+        let mut response = self.http_client
+            .post(url)
+            .body(request_body)
+            .bearer_auth(&self.access_token)
+            .header(reqwest::header::HeaderName::from_static("x-sonos-api-key"),
+                    reqwest::header::HeaderValue::from_str(&self.client_id)?)
+            .send()
+            .unwrap();
+
+        let response_body = response.text()?;
+
+        debug!("Raw response: {:?}",  response_body);
         return Ok(serde_json::from_str(&response_body)?);
     }
 }
